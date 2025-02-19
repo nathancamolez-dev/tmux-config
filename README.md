@@ -1,4 +1,5 @@
 dubstep logic 
+```
 if [ -n "$TMUX" ]; then
     export TMUX_DIR=$(tmux display-message -p '#{pane_current_path}')
 
@@ -12,3 +13,4 @@ if [ -n "$TMUX" ]; then
         fi
     }
 fi
+```
