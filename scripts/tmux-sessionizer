@@ -1,0 +1,55 @@
+#!/usr/bin/env bash
+
+if [[ $# -eq 1 ]]; then
+    selected=$1
+else
+    selected=$(find ~/Code -mindepth 2 -maxdepth 3 -type d | fzf)
+fi
+
+if [[ -z $selected ]]; then
+    exit 0
+fi
+
+selected_name=$(basename "$selected" | tr . _)
+
+tmux_running=$(pgrep tmux)
+
+if [[ -z $tmux_running ]]; then
+    # Nenhum tmux rodando, cria nova sessão
+    tmux new-session -s $selected_name -c $selected
+    exit 0
+fi
+
+if [[ -z $TMUX ]]; then
+    # Fora de sessão tmux, conecta ou cria sessão
+    if ! tmux has-session -t=$selected_name 2>/dev/null; then
+        tmux new-session -ds $selected_name -c $selected
+    fi
+    tmux attach -t $selected_name
+else
+    # Dentro de sessão tmux, "reinicia" a sessão atual
+
+    current_session=$(tmux display-message -p '#S')
+    current_window=$(tmux display-message -p '#I')
+
+    # Fecha todas as janelas da sessão atual exceto a atual
+    windows=$(tmux list-windows -t "$current_session" -F '#I')
+    for w in $windows; do
+        if [[ "$w" != "$current_window" ]]; then
+            tmux kill-window -t "$current_session:$w"
+        fi
+    done
+
+    # Respawna a janela atual no diretório selecionado
+    tmux send-keys -t "$current_session:$current_window" "cd '$selected'" C-m
+    tmux send-keys -t "$current_session:$current_window" "clear" C-m
+
+    # Alternativamente, para reiniciar o shell da janela:
+    # tmux respawn-window -t "$current_session:$current_window" -c "$selected"
+    #
+    # Renomeia
+    tmux rename-session -t "$current_session" "$selected_name"
+
+    # Garante que estamos na sessão e janela correta
+    tmux switch-client -t "$current_session:$current_window"
+fi
