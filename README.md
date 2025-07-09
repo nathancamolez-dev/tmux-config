@@ -14,3 +14,5 @@ if [ -n "$TMUX" ]; then
     }
 fi
 ```
+In the directory ~/.local/scripts
+You have to add the scripts that is on the directory scripts
