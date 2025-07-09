@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+
+INDEX=$1
+SESSIONS=($(tmux list-sessions -F "#S"))
+
+if [[ ${#SESSIONS[@]} -ge $INDEX ]]; then
+  tmux switch-client -t "${SESSIONS[$((INDEX-1))]}"
+else
+  tmux display-message "Sessão $INDEX não encontrada"
+fi
