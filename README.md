@@ -1,3 +1,5 @@
+This configurations allows the tmux be ready for coding with Nvim, having the plugins to create sessions that are the projects, avoiding the search process. You can save the tmux server to make that the next time you time tmux on the termial the last sessions will be opened.
+
 Logic to make the directory of the tmux the ~ (default one) for the session. 
 ```
 if [ -n "$TMUX" ]; then
