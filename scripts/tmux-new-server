@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Escolher diretório
+if [[ $# -eq 1 ]]; then
+  selected=$1
+else
+  selected=$(find ~/Code -mindepth 1 -maxdepth 4 -type d -print 2>/dev/null | fzf)
+fi
+
+# Cancelado
+[[ -z ${selected:-} ]] && exit 0
+
+selected_name=$(basename "$selected" | tr . _)
+
+inside_tmux=${TMUX-}
+current_session=""
+if [[ -n "$inside_tmux" ]]; then
+  current_session=$(tmux display-message -p '#S')
+fi
+
+# Se a sessão já existir, só entra/troca pra ela
+if tmux has-session -t "$selected_name" 2>/dev/null; then
+  if [[ -z "$inside_tmux" ]]; then
+    tmux attach -t "$selected_name"
+  else
+    tmux switch-client -t "$selected_name"
+  fi
+else
+  # Cria a sessão (detached) já no diretório escolhido
+  tmux new-session -ds "$selected_name" -c "$selected"
+  # Entra/troca pra ela
+  if [[ -z "$inside_tmux" ]]; then
+    tmux attach -t "$selected_name"
+  else
+    tmux switch-client -t "$selected_name"
+  fi
+fi
+
+~/.local/scripts/kill-others "$selected_name" &
