@@ -1,0 +1,85 @@
+#!/usr/bin/env bash
+
+ALACRITTY_THEME="$HOME/.config/omarchy/current/theme/alacritty.toml"
+GHOSTTY_CONFIG="$HOME/.config/ghostty/config"
+
+CURSOR_STYLE=block
+FONT_FAMILY="TX-02"
+FONT_STYLE="Bold SemiCondensed"
+FONT_SIZE=15
+
+# Convert any color format to Ghostty-compatible #RRGGBB
+color_to_hex() {
+    local color=$(echo "$1" | tr -d '"' | xargs)
+
+    # Already #RRGGBB
+    if [[ $color =~ ^#([0-9a-fA-F]{6})$ ]]; then
+        echo "$color"
+
+    # Short hex #RGB -> #RRGGBB
+    elif [[ $color =~ ^#([0-9a-fA-F]{3})$ ]]; then
+        r=${BASH_REMATCH[1]:0:1}
+        g=${BASH_REMATCH[1]:1:1}
+        b=${BASH_REMATCH[1]:2:1}
+        echo "#$r$r$g$g$b$b"
+
+    # 0xRRGGBB -> #RRGGBB
+    elif [[ $color =~ ^0x([0-9a-fA-F]{6})$ ]]; then
+        echo "#${BASH_REMATCH[1]}"
+
+    # 0xRGB -> #RRGGBB
+    elif [[ $color =~ ^0x([0-9a-fA-F]{3})$ ]]; then
+        r=${BASH_REMATCH[1]:0:1}
+        g=${BASH_REMATCH[1]:1:1}
+        b=${BASH_REMATCH[1]:2:1}
+        echo "#$r$r$g$g$b$b"
+
+    # rgba(r,g,b,a)
+    elif [[ $color =~ rgba?\(([0-9]+),[[:space:]]*([0-9]+),[[:space:]]*([0-9]+)(,[[:space:]]*[0-9.]+)?\) ]]; then
+        printf "#%02X%02X%02X" "${BASH_REMATCH[1]}" "${BASH_REMATCH[2]}" "${BASH_REMATCH[3]}"
+
+    else
+        echo "#000000"  # fallback for invalid values
+    fi
+}
+
+# Start building Ghostty config
+{
+    echo "config-file = ~/.config/omarchy/current/theme/ghostty.conf"
+    # Fonts
+    echo "cursor-style = $CURSOR_STYLE"
+    echo "font-family = \"$FONT_FAMILY\""
+    echo "font-style = $FONT_STYLE"
+    echo "font-size = $FONT_SIZE"
+    echo ""
+
+    # Background / Foreground
+    bg=$(grep 'background' "$ALACRITTY_THEME" | head -n1 | cut -d '=' -f2)
+    fg=$(grep 'foreground' "$ALACRITTY_THEME" | head -n1 | cut -d '=' -f2)
+    echo "background = $(color_to_hex "$bg")"
+    echo "foreground = $(color_to_hex "$fg")"
+    echo ""
+
+    # Palette colors 0–7 (normal)
+    colors=(black red green yellow blue magenta cyan white)
+    for i in ${!colors[@]}; do
+        col=$(awk -v c="${colors[$i]}" '
+            /^\[colors.normal\]/ {in_normal=1; next}
+            /^\[/ {in_normal=0}
+            in_normal && $1==c {gsub(/ /,""); split($0,a,"="); print a[2]}
+        ' "$ALACRITTY_THEME")
+        echo "palette = $i=$(color_to_hex "$col")"
+    done
+
+    # Palette colors 8–15 (bright)
+    for i in ${!colors[@]}; do
+        col=$(awk -v c="${colors[$i]}" '
+            /^\[colors.bright\]/ {in_bright=1; next}
+            /^\[/ {in_bright=0}
+            in_bright && $1==c {gsub(/ /,""); split($0,a,"="); print a[2]}
+        ' "$ALACRITTY_THEME")
+        echo "palette = $((i+8))=$(color_to_hex "$col")"
+    done
+} > "$GHOSTTY_CONFIG"
+
+echo "✅ Ghostty config updated using $ALACRITTY_THEME"
